@@ -96,19 +96,19 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
     realAmount: UInt224,
     targetAmount: UInt224
   ): Promise<Bool> {
+
     // set realAmount to the state
+    const realAmountInFunction = realAmount;
     await this.realAmount.set(realAmount);
 
-    // Check if real amount is greater or equal to the target amount
-    const isRealAmountMoreThanTarget =
-      await this.verifyIfRealAmountIsMoreThanTarget(targetAmount);
+    const isReserveAmountMoreThanTarget = targetAmount.lessThanOrEqual(realAmountInFunction)
 
     assert(
-      isRealAmountMoreThanTarget,
+      isReserveAmountMoreThanTarget,
       "You have not enough reserves to mint the synthetic asset"
     );
 
-    return isRealAmountMoreThanTarget;
+    return isReserveAmountMoreThanTarget;
 
     // implement lock MINA on-chain
 
