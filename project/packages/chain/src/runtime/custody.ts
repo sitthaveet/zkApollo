@@ -14,7 +14,7 @@ import { inject } from "tsyringe";
 const divisionBase = 1e10; //check scale doesn't overflow if using 224 bit should not?
 
 let custodyAccount = PublicKey.fromBase58(
-  "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+  "B62qnC7EoxyZBWYXZDir6UqAAQoF3t3EoonG5JrPhH1fkjUYTKGctUy"
 );
 
 @runtimeModule()
@@ -47,7 +47,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
   // init method to set value in state
   @runtimeMethod() public async init(
   ): Promise<void> {
-    await this.admin.set(this.transaction.sender.value);
+    await this.admin.set(await this.transaction.sender.value);
     await this.totalSupply.set(UInt224.from(0));
     await this.usedSupply.set(UInt224.from(0));
     await this.collateralFactor.set(UInt224.from(2));
@@ -87,7 +87,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
   //currently only the admin can add new asset providers, once KYC or other security measures are added this can be relaxed
   public async setSenderId(address: PublicKey, amount: UInt224) {
-    const sender = this.transaction.sender.value;
+    const sender = await this.transaction.sender.value;
     const admin = (await this.admin.get()).value;
     const isSenderAdmin = sender.equals(admin);
     assert(isSenderAdmin, "Only admin can update asset price");
@@ -95,7 +95,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
   }
 
   public async setOraclePublicKey(oraclePublicKey: PublicKey) {
-    const sender = this.transaction.sender.value;
+    const sender = await this.transaction.sender.value;
     const admin = (await this.admin.get()).value;
     const isSenderAdmin = sender.equals(admin);
     assert(isSenderAdmin, "Only admin can update asset price");
@@ -103,7 +103,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
   }
 
   @runtimeMethod() public async updateAssetPrice(newPrice: UInt224): Promise<void>{
-    const sender = this.transaction.sender.value;
+    const sender = await this.transaction.sender.value;
     const admin = (await this.admin.get()).value;
     const isSenderAdmin = sender.equals(admin);
     assert(isSenderAdmin, "Only admin can update asset price");
@@ -113,8 +113,8 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
   public async verifyReserveAmount(signature: Signature, requiredReserve: UInt224, currentReserve: UInt224, id : UInt224): Promise<void> {
 
     const oraclePublicKey = (await this.oraclePublicKey.get()).value;
-    const currentReserveField: Field = Field.from(currentReserve);
-    const validSignature = signature.verify(oraclePublicKey, [id, currentReserve]);
+    const currentReserveField: Field = Field.from(currentReserve.value);
+    const validSignature = signature.verify(oraclePublicKey, [id.value, currentReserveField]);
     // Check that the signature is valid
     validSignature.assertTrue();
     // Check that the provided credit score is 700 or higher
@@ -129,7 +129,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     ): Promise<void> {
     //---prove supply of custody asset and add into available supply on Mina, deposit Mina as collateral---
 
-    const sender = this.transaction.sender.value;
+    const sender = await this.transaction.sender.value;
     const senderId = await this.getSenderId(sender);
     
     //determine value of mina collateral
@@ -149,22 +149,22 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
     //record accounting changes
     const existingTotalSupply = (await this.totalSupply.get()).value;
-    this.totalSupply.set(existingTotalSupply.add(newSupply));
+    await this.totalSupply.set(existingTotalSupply.add(newSupply));
 
     const currentUserCustodyBalance = await this.getCustodyBalance(sender);
     const newCustodyAmount = currentUserCustodyBalance.add(newSupply);
-    this.setCustodyBalance(sender, newCustodyAmount);
+    await  this.setCustodyBalance(sender, newCustodyAmount);
 
     const currentUserCollateralBalance = await this.getCollateralBalance(sender);
     const newCollateralAmount = currentUserCollateralBalance.add(minaAmount);
-    this.setCollateralBalance(sender, newCollateralAmount);
+    await this.setCollateralBalance(sender, newCollateralAmount);
 
 }
 
 @runtimeMethod() public async removeCustody(removeSupply: UInt224, minaAmount: UInt224): Promise<void> {
      //---Remove unused existing available supply from Mina, refund mina deposit collateral---
 
-     const sender = this.transaction.sender.value;
+     const sender = await this.transaction.sender.value;
 
      //check there is sufficient unused custody asset to remove
      const existingTotalSupply = (await this.totalSupply.get()).value;
@@ -190,16 +190,16 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
      //(await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaAmount);
 
      //record accounting changes
-     this.totalSupply.set(existingTotalSupply.sub(removeSupply));
-     this.setCustodyBalance(sender, newCustodyAmount);
-     this.setCollateralBalance(sender, newCollateralAmount);
+     await this.totalSupply.set(existingTotalSupply.sub(removeSupply));
+     await this.setCustodyBalance(sender, newCustodyAmount);
+     await this.setCollateralBalance(sender, newCollateralAmount);
 
    
   }
 
 @runtimeMethod() public async mintTokens(minaAmount: UInt224): Promise<void> {
     //---User requests to use synthetic token, paying in Mina---
-    const sender = this.transaction.sender.value;
+    const sender = await this.transaction.sender.value;
 
     //transfer amount of Mina from user for purchase
     //(await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
@@ -218,13 +218,13 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
     //accounting updates
     const existingUsedSupply = (await this.usedSupply.get()).value;
-    this.usedSupply.set(existingUsedSupply.add(mintTokenAmount));
+    await this.usedSupply.set(existingUsedSupply.add(mintTokenAmount));
   }
 
   @runtimeMethod() public async burnTokens(burnTokenAmount: UInt224): Promise<void> {
     //---User requests to return synthetic token, selling in Mina---
 
-    const sender = this.transaction.sender.value;
+    const sender = await this.transaction.sender.value;
 
     //check value of tokens requesting to burn 
     const tokenValue = await this.fetchSyntheticAssetPriceForAmount(burnTokenAmount);
@@ -242,7 +242,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
     //accounting update
     const existingUsedSupply = (await this.usedSupply.get()).value;
-    this.usedSupply.set(existingUsedSupply.sub(burnTokenAmount));
+    await this.usedSupply.set(existingUsedSupply.sub(burnTokenAmount));
 
   }
 
