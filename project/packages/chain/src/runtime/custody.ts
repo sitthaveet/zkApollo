@@ -7,15 +7,11 @@ import {
   state,
 } from "@proto-kit/module";
 import { UInt224, UInt64, Balances } from "@proto-kit/library";
-import { PublicKey, Field, Bool, Provable, Signature, Mina } from "o1js";
+import { PublicKey, Field, Bool, Provable, Signature, Mina, Struct } from "o1js";
 import { SyntheticAsset } from "./syntheticAsset";
 import { inject } from "tsyringe";
 
 const divisionBase = 1e10; //check scale doesn't overflow if using 224 bit should not?
-// public key of Copper
-let _copperPublicKey = PublicKey.fromBase58(
-  "B62qoAE4rBRuTgC42vqvEyUqCGhaZsW58SKVW4Ht8aYqP9UTvxFWBgy"
-);
 
 @runtimeModule()
 export class CustodyModule extends RuntimeModule<Record<string, never>> {
@@ -31,7 +27,6 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
  @state() public custodyBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
  @state() public collateralBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
  @state() public reserveAmount = State.from<UInt224>(UInt224);
- @state() public copperPublicKey = State.from<PublicKey>(PublicKey);
 
   // constructor (can't set value in state here), required by sequencers
   public constructor(
@@ -48,7 +43,6 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     await this.usedSupply.set(UInt224.from(0));
     await this.collateralFactor.set(UInt224.from(2));
     await this.reserveAmount.set(UInt224.from(0));
-    await this.copperPublicKey.set(_copperPublicKey);
   }
 
   public async fetchMinaOraclePriceForAmount(amount: UInt224): Promise<UInt224> {

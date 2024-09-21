@@ -7,32 +7,28 @@ import {
   method,
   Bool,
 } from "o1js";
-import { OracleModule } from "../../../src/runtime/oracle_depreciated";
+import { CustodyModule } from "../../../src/runtime/custody";
 import { log } from "@proto-kit/common";
 import { BalancesKey, TokenId, UInt64, UInt224, Balance } from "@proto-kit/library";
 
 log.setLevel("ERROR");
 
-let COPPER_PUBLIC_KEY =
-  "B62qoAE4rBRuTgC42vqvEyUqCGhaZsW58SKVW4Ht8aYqP9UTvxFWBgy";
-  
-
-describe("Oracle", () => {
+describe("Verify the reserves in custody and mint synthetic asset", () => {
     let appChain: ReturnType<
-    typeof TestingAppChain.fromRuntime<{ OracleModule: typeof OracleModule }>
+    typeof TestingAppChain.fromRuntime<{ CustodyModule: typeof CustodyModule }>
   >;
     const alicePrivateKey = PrivateKey.random();
     const alice = alicePrivateKey.toPublicKey();
-    let oracle: OracleModule;
+    let custody: CustodyModule;
     let result: Bool;
 
     beforeAll(async () => {
         appChain = TestingAppChain.fromRuntime({
-            OracleModule,
+            CustodyModule,
           });    
         appChain.configurePartial({
           Runtime: {
-            OracleModule: {
+            CustodyModule: {
             },
             Balances: {
                 totalSupply: Balance.from(10_000),
@@ -41,13 +37,13 @@ describe("Oracle", () => {
         });
     
         await appChain.start();
-        oracle = appChain.runtime.resolve("OracleModule");
+        custody = appChain.runtime.resolve("CustodyModule");
         appChain.setSigner(alicePrivateKey);
     });
 
     async function localDeploy() {
         const tx = await appChain.transaction(alice, async () => {
-            await oracle.init();
+            await custody.init();
           });
          
           await tx.sign();
@@ -57,7 +53,7 @@ describe("Oracle", () => {
     
   it("check the initial reserve amount must be 0", async () => {
    await localDeploy();
-    const realAmount = await appChain.query.runtime.OracleModule.realAmount.get();
+    const realAmount = await appChain.query.runtime.CustodyModule.reserveAmount.get();
     expect(realAmount).toEqual(UInt224.from(0));
   });
 
@@ -73,7 +69,7 @@ describe("Oracle", () => {
     const targetAmount = UInt224.from(500);
 
     const tx = await appChain.transaction(alice, async () => {
-        result = await oracle.verifyReserveForMinting(realAmount, targetAmount);
+        result = await custody.proveCustodyForMinting(realAmount, targetAmount);
     });         
     await tx.sign();
     await tx.send();
@@ -93,7 +89,7 @@ describe("Oracle", () => {
     const targetAmount = UInt224.from(1000);
 
     const tx = await appChain.transaction(alice, async () => {
-        result = await oracle.verifyReserveForMinting(realAmount, targetAmount);
+        result = await custody.proveCustodyForMinting(realAmount, targetAmount);
     });         
     await tx.sign();
     await tx.send();
