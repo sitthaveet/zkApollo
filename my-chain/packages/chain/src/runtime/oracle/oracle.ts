@@ -57,16 +57,15 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
     return isRealAmountMoreThanTarget;
   }
 
-  public async penaltyOwner(): Promise<UInt224> {
-    // TODO: implement penalty for Alice
-    return UInt224.from(0);
-  }
+  // public async penaltyOwner(): Promise<UInt224> {
+  //   // TODO: implement penalty for Alice
+  //   return UInt224.from(0);
+  // }
 
   // method oracle verify response from Copper API for checking from their client
   @runtimeMethod()
   public async verifyReserve(
     realAmount: UInt224,
-    signature: Signature,
     targetAmount: UInt224
   ) {
 
@@ -96,7 +95,7 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
   public async verifyReserveForMinting(
     realAmount: UInt224,
     targetAmount: UInt224
-  ) {
+  ): Promise<Bool> {
     // set realAmount to the state
     await this.realAmount.set(realAmount);
 
@@ -108,6 +107,8 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
       isRealAmountMoreThanTarget,
       "You have not enough reserves to mint the synthetic asset"
     );
+
+    return isRealAmountMoreThanTarget;
 
     // implement lock MINA on-chain
 

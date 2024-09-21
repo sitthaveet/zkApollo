@@ -7,6 +7,7 @@ import {
   AccountUpdate,
   Signature,
   method,
+  Bool,
 } from "o1js";
 import { OracleModule } from "../../../src/runtime/oracle/oracle";
 import { log } from "@proto-kit/common";
@@ -16,85 +17,86 @@ log.setLevel("ERROR");
 
 let COPPER_PUBLIC_KEY =
   "B62qoAE4rBRuTgC42vqvEyUqCGhaZsW58SKVW4Ht8aYqP9UTvxFWBgy";
+  
 
 describe("Oracle", () => {
-    beforeAll(async () => {
-        // const appChain = TestingAppChain.fromRuntime({
-        //     OracleModule,
-        //   });
-    
-        // const alicePrivateKey = PrivateKey.random();
-        // const alice = alicePrivateKey.toPublicKey();
-    
-        // appChain.configurePartial({
-        //   Runtime: {
-        //     OracleModule: {
-        //     },
-        //     Balances: {
-        //         totalSupply: Balance.from(10_000),
-        //       },
-        //   },
-        // });
-    
-        // await appChain.start();
-        // const oracle = appChain.runtime.resolve("OracleModule");
-        // appChain.setSigner(alicePrivateKey);
-    });
-    
-  it("check the initial reserve amount must be 0", async () => {
-    const appChain = TestingAppChain.fromRuntime({
-        OracleModule,
-      });
-
+    let appChain: ReturnType<
+    typeof TestingAppChain.fromRuntime<{ OracleModule: typeof OracleModule }>
+  >;
     const alicePrivateKey = PrivateKey.random();
     const alice = alicePrivateKey.toPublicKey();
+    let oracle: OracleModule;
+    let result: Bool;
 
-    appChain.configurePartial({
-      Runtime: {
-        OracleModule: {
-        },
-        Balances: {
-            totalSupply: Balance.from(10_000),
+    beforeAll(async () => {
+        appChain = TestingAppChain.fromRuntime({
+            OracleModule,
+          });    
+        appChain.configurePartial({
+          Runtime: {
+            OracleModule: {
+            },
+            Balances: {
+                totalSupply: Balance.from(10_000),
+              },
           },
-      },
+        });
+    
+        await appChain.start();
+        oracle = appChain.runtime.resolve("OracleModule");
+        appChain.setSigner(alicePrivateKey);
     });
 
-    await appChain.start();
-    appChain.setSigner(alicePrivateKey);
-    const oracle = appChain.runtime.resolve("OracleModule");
-    const tx = await appChain.transaction(alice, async () => {
-        await oracle.init();
-      });
-     
-      await tx.sign();
-      await tx.send();
-      const block = await appChain.produceBlock()
+    async function localDeploy() {
+        const tx = await appChain.transaction(alice, async () => {
+            await oracle.init();
+          });
+         
+          await tx.sign();
+          await tx.send();
+          const block = await appChain.produceBlock()
+    }
+    
+  it("check the initial reserve amount must be 0", async () => {
+   await localDeploy();
     const realAmount = await appChain.query.runtime.OracleModule.realAmount.get();
     expect(realAmount).toEqual(UInt224.from(0));
   });
 
+  it('if the reserve is not enough, the verifyReserveForMinting should return false', async () => {
+    await localDeploy();
+
+    const realAmount = UInt224.from(787);
+    const targetAmount = UInt224.from(1000);
+
+    const txn = await Mina.transaction(alice, async () => {
+       result = await oracle.verifyReserveForMinting(realAmount, targetAmount);
+    });
+    await txn.prove();
+    await txn.sign([alicePrivateKey]).send();
+
+    expect(result.toBoolean()).toBe(false);
+  });
 
 
+//   it("send API data to check reserve", async () => {
 
-  // it("send API data to check reserve", async () => {
+//       const response = await fetch(
+//         "https://07-oracles.vercel.app/api/credit-score?user=1"
+//       );
+//       const data = await response.json();
 
-  //     const response = await fetch(
-  //       "https://07-oracles.vercel.app/api/credit-score?user=1"
-  //     );
-  //     const data = await response.json();
+//       const creditScore = Field(data.data.creditScore);
+//       const signature = Signature.fromBase58(data.signature);
 
-  //     const id = Field(data.data.id);
-  //     const creditScore = Field(data.data.creditScore);
-  //     const signature = Signature.fromBase58(data.signature);
+//       const txn = await Mina.transaction(senderAccount, async () => {
+//         await zkApp.verify(id, creditScore, signature);
+//       });
+//       await txn.prove();
+//       await txn.sign([senderKey]).send();
 
-  //     const txn = await Mina.transaction(senderAccount, async () => {
-  //       await zkApp.verify(id, creditScore, signature);
-  //     });
-  //     await txn.prove();
-  //     await txn.sign([senderKey]).send();
-
-  //     const events = await zkApp.fetchEvents();
-  //     const verifiedEventValue = events[0].event.data.toFields(null)[0];
-  //     expect(verifiedEventValue).toEqual(id);
-  //   });
+//       const events = await zkApp.fetchEvents();
+//       const verifiedEventValue = events[0].event.data.toFields(null)[0];
+//       expect(verifiedEventValue).toEqual(id);
+//     });
 });
