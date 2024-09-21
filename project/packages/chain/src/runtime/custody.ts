@@ -7,7 +7,7 @@ import {
 } from "@proto-kit/module";
 import { UInt224, UInt64 } from "@proto-kit/library";
 import { PublicKey, Field, Bool, Provable, Signature, Mina } from "o1js";
-import { SyntheticAsset } from "../syntheticAsset/syntheticAsset";
+import { SyntheticAsset } from "./syntheticAsset";
 
 const divisionBase = 1e10; //check scale doesn't overflow if using 224 bit should not?
 

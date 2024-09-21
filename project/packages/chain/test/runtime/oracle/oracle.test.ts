@@ -7,7 +7,7 @@ import {
   method,
   Bool,
 } from "o1js";
-import { OracleModule } from "../../../src/runtime/oracle/oracle";
+import { OracleModule } from "../../../src/runtime/oracle";
 import { log } from "@proto-kit/common";
 import { BalancesKey, TokenId, UInt64, UInt224, Balance } from "@proto-kit/library";
 
