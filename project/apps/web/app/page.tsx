@@ -12,8 +12,8 @@ export default function Home() {
     <div className="text-gray-800 font-sans">
       <main className="container mx-auto px-4 py-12">
         <section className="text-center min-h-[calc(100vh-10rem)] flex flex-col justify-center">
-          <h1 className="text-4xl md:text-7xl max-w-[90%] mx-auto font-bold font-mono mb-6">Tokenize Real-World Assets with ZK Proofs</h1>
-          <p className="text-xl mb-8">Unlock the potential of your assets through blockchain technology</p>
+          <h1 className="text-4xl md:text-7xl max-w-[90%] mx-auto font-bold font-mono mb-6">zkApollo</h1>
+          <p className="text-xl mb-8">Verifiable Proof of Reserve for RWAs Tokenization</p>
           <a className="flex justify-center" href="/swap">
             <button className="flex items-center gap-4 text-white pl-6 pr-3 py-3 rounded-full text-lg font-semibold transition-all bg-blue-600 hover:bg-blue-700">
              <p>

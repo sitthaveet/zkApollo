@@ -17,7 +17,7 @@ export default function App() {
     <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
       <div>
         <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-2xl px-6 pt-6">
-          <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Swap</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Buy</h2>
         </div>
       <div className="w-full max-w-md p-6 bg-white rounded-2xl shadow-xl border border-slate-200">
         <div className="space-y-4">

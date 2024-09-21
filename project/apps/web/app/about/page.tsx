@@ -14,25 +14,23 @@ export default function AboutPage() {
           <h3 className="text-xl font-semibold mb-3">Our Mission</h3>
           <p>
             We're a team of 3 passionate developers participating in ETHGlobal Singapore. 
-            Our project aims to bridge the gap between real-world assets and the Web3 ecosystem 
-            using the power of Mina Protocol and zero-knowledge proofs.
+            Our project aims to provide better way to do verifiable proof of reserve in privacy-preserving way.
           </p>
         </div>
         <div className="bg-white shadow-md rounded-lg p-6">
           <h3 className="text-xl font-semibold mb-3">The Team</h3>
           <ul className="list-disc list-inside">
-            <li>Developer 1: [Name] - [Role/Expertise]</li>
-            <li>Developer 2: [Name] - [Role/Expertise]</li>
-            <li>Developer 3: [Name] - [Role/Expertise]</li>
+            <li>Developer 1: [Prasad]</li>
+            <li>Developer 2: [Callum]</li>
+            <li>Developer 3: [Son]</li>
           </ul>
         </div>
       </div>
 
       <div>
-        <h3 className="text-2xl font-semibold mb-3">Our Solution</h3>
+        <h3 className="text-2xl font-semibold mb-3">Motivation</h3>
         <p>
-          [Brief description of your project, how it uses Mina Protocol and ZK proofs 
-          to bring real-world assets to Web3, and its potential impact]
+        RWAs Tokenization promises the next wave of finanial revolution. But, we are still lacking a standard way to verify the reserves backing the RWA tokens. Since TradFi players are joining Mina ecosystem (eg. Mirae Asset Financial Group and Copper as an institutional custodian), we believe zkApollo can be the solution to verify the reserve for RWA tokenized securities, supporting the mission of Proof of Everything.
         </p>
       </div>
     </div>
