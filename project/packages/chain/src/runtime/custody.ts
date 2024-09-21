@@ -94,6 +94,14 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     await this.senderId.set(address, amount);
   }
 
+  public async setOraclePublicKey(oraclePublicKey: PublicKey) {
+    const sender = this.transaction.sender.value;
+    const admin = (await this.admin.get()).value;
+    const isSenderAdmin = sender.equals(admin);
+    assert(isSenderAdmin, "Only admin can update asset price");
+    await this.oraclePublicKey.set(oraclePublicKey);
+  }
+
   @runtimeMethod() public async updateAssetPrice(newPrice: UInt224): Promise<void>{
     const sender = this.transaction.sender.value;
     const admin = (await this.admin.get()).value;
