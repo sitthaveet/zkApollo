@@ -7,11 +7,15 @@ import {
   state,
 } from "@proto-kit/module";
 import { UInt224, UInt64, Balances } from "@proto-kit/library";
-import { PublicKey, Field, Bool, Provable, Signature, Mina, Struct } from "o1js";
+import { PublicKey, Field, Bool, Provable, Signature, Mina, Struct, provable } from "o1js";
 import { SyntheticAsset } from "./syntheticAsset";
 import { inject } from "tsyringe";
 
 const divisionBase = 1e10; //check scale doesn't overflow if using 224 bit should not?
+
+let custodyAccount = PublicKey.fromBase58(
+  "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+);
 
 @runtimeModule()
 export class CustodyModule extends RuntimeModule<Record<string, never>> {
@@ -23,12 +27,14 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
  @state() public admin = State.from<PublicKey>(PublicKey);
  @state() public collateralFactor = State.from<UInt224>(UInt224);
  @state() public minaBalance = State.from<UInt224>(UInt224);
+ @state() public oraclePublicKey = State.from<PublicKey>(PublicKey);
 
  @state() public syntheticAsset = State.from<SyntheticAsset>(SyntheticAsset);
  @state() public minaAsset = State.from<SyntheticAsset>(SyntheticAsset);
 
  @state() public custodyBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
  @state() public collateralBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
+ @state() public senderId = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
  @state() public reserveAmount = State.from<UInt224>(UInt224);
 
   // constructor (can't set value in state here), required by sequencers
@@ -75,6 +81,19 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     await this.collateralBalances.set(address, amount);
   }
 
+  public async getSenderId(address: PublicKey): Promise<UInt224> {
+    return (await this.senderId.get(address)).orElse(UInt224.from(0));
+  }
+
+  //currently only the admin can add new asset providers, once KYC or other security measures are added this can be relaxed
+  public async setSenderId(address: PublicKey, amount: UInt224) {
+    const sender = this.transaction.sender.value;
+    const admin = (await this.admin.get()).value;
+    const isSenderAdmin = sender.equals(admin);
+    assert(isSenderAdmin, "Only admin can update asset price");
+    await this.senderId.set(address, amount);
+  }
+
   @runtimeMethod() public async updateAssetPrice(newPrice: UInt224): Promise<void>{
     const sender = this.transaction.sender.value;
     const admin = (await this.admin.get()).value;
@@ -83,11 +102,26 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     await this.assetPrice.set(newPrice);
   }
 
+  public async verifyReserveAmount(signature: Signature, requiredReserve: UInt224, currentReserve: UInt224, id : UInt224): Promise<void> {
 
-  @runtimeMethod() public async proveCustodyForMinting(reserveAmount: UInt224, requiredAmount: UInt224, newSupply: UInt224): Promise<void> {
+    const oraclePublicKey = this.oraclePublicKey.get();
+    const validSignature = signature.verify(oraclePublicKey, [id, currentReserve]);
+    // Check that the signature is valid
+    validSignature.assertTrue();
+    // Check that the provided credit score is 700 or higher
+    currentReserve.assertGreaterThanOrEqual(requiredReserve);
+  }
+
+  @runtimeMethod() public async proveCustodyForMinting(
+    reserveAmount: UInt224, 
+    newSupply: UInt224, 
+    minaAmount: UInt224, 
+    signature: Signature
+    ): Promise<void> {
     //---prove supply of custody asset and add into available supply on Mina, deposit Mina as collateral---
 
     const sender = this.transaction.sender.value;
+    const senderId = this.getSenderId(sender);
     
     //determine value of mina collateral
     const totalMinaValue = await this.fetchMinaOraclePriceForAmount(minaAmount);
@@ -101,16 +135,8 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     //transfer amount of Mina Collateral from user
     (await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
 
-    //Call Verification of Proof of RWA here!
-      // set realAmount to the state
-      await this.reserveAmount.set(reserveAmount);
-
-      // check if reserve amount is greater or equal to the required amount
-      const isReserveAmountMoreThanRequired = requiredAmount.lessThanOrEqual(reserveAmount);
-      assert(
-        isReserveAmountMoreThanRequired,
-        "You have not enough reserves to mint the synthetic asset"
-      );
+    //Call Verification of Proof of RWA
+    await this.verifyReserveAmount(signature, newSupply, reserveAmount, senderId);
 
     //record accounting changes
     const existingTotalSupply = (await this.totalSupply.get()).value;
@@ -126,7 +152,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
 }
 
-@runtimeMethod() public async removeCustody(removeSupply: UInt224): Promise<void> {
+@runtimeMethod() public async removeCustody(removeSupply: UInt224, minaAmount: UInt224): Promise<void> {
      //---Remove unused existing available supply from Mina, refund mina deposit collateral---
 
      const sender = this.transaction.sender.value;
