@@ -18,6 +18,9 @@ export default function Footer({blockHeight}: {blockHeight: string}) {
                 Built on 
             </div>
             <Image src="/mina.svg" alt="Mina" width={32} height={32} />
+            <div>
+              at ETH Global Singapore 2024
+            </div>
         </div>
     </footer>
   )

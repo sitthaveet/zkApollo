@@ -2,16 +2,42 @@
 import { useState } from "react";
 import { ArrowDownIcon } from "lucide-react"
 import Image from "next/image";
+import { Separator } from "@/components/ui/separator";
+import { useBalancesStore, useSwap } from "@/lib/stores/balances";
+import { useWalletStore } from "@/lib/stores/wallet";
+import { Balance } from "@proto-kit/library";
 
 export default function App() {
   const [swapAmount, setSwapAmount] = useState("");
   const [estimatedTSLA, setEstimatedTSLA] = useState("0");
+  const { balances } = useBalancesStore();
+  const wallet = useWalletStore();
+  const swap = useSwap();
+  
+  const userMinaBalance = parseFloat(balances[`${wallet.wallet}_mina`] || "0");
+  const availableLiquidity = Number(balances["total_supply"]) - Number(balances["used_supply"]);
 
   const handleSwapAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const amount = e.target.value;
     setSwapAmount(amount);
-    setEstimatedTSLA((parseFloat(amount) * 0.5).toFixed(2));
+    const estimatedAmount = (parseFloat(amount) / 200).toFixed(2);
+    setEstimatedTSLA(estimatedAmount);
   };
+
+  const handleMaxClick = () => {
+    setSwapAmount(userMinaBalance.toString());
+    setEstimatedTSLA((userMinaBalance / 200).toFixed(2));
+  };
+
+  const handleSwap = () => {
+    console.log("Swapping MINA to TSLA:", swapAmount);
+    swap(Balance.from(swapAmount));
+  };
+
+  const isSwapDisabled = 
+    parseFloat(swapAmount) <= 0 || 
+    parseFloat(swapAmount) > userMinaBalance ||
+    parseFloat(estimatedTSLA) > availableLiquidity;
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
@@ -37,6 +63,12 @@ export default function App() {
                 <span className="ml-1">MINA</span>
               </div>
             </div>
+              <button
+                className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                onClick={handleMaxClick}
+              >
+                Max
+              </button>
           </div>
 
           {/* Swap arrow */}
@@ -64,18 +96,28 @@ export default function App() {
             </div>
           </div>
 
+          <div className="flex flex-col items-center justify-center border border-slate-200 rounded-xl p-2">
+          <p className="text-center text-sm text-gray-600">
+            1 MINA = {200} TSLA
+          </p>
+          <Separator className="my-2" />
+          <p className="text-center text-sm text-gray-600">
+            Liquidity: {availableLiquidity} TSLA
+          </p>
+          </div>
+
           {/* Swap button */}
           <button
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-200 ease-in-out transform hover:-translate-y-1"
-            onClick={() => console.log("Swapping MINA to TSLA:", swapAmount)}
+            className={`w-full font-bold py-3 px-4 rounded-xl transition duration-200 ease-in-out transform hover:-translate-y-1 ${
+              isSwapDisabled
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
+            onClick={handleSwap}
+            disabled={isSwapDisabled}
           >
-            Swap
+            {isSwapDisabled ? "Insufficient balance or liquidity" : "Swap"}
           </button>
-
-          {/* Exchange rate */}
-          <p className="text-center text-sm text-gray-600">
-            1 MINA = 0.5 TSLA
-          </p>
         </div>
       </div>
       </div>

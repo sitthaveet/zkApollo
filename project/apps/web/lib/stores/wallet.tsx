@@ -100,9 +100,12 @@ export const useNotifyTransactions = () => {
         "MethodIdResolver",
         MethodIdResolver,
       );
-
+      if(!transaction.methodId.isConstant()){
+        return;
+      }
       const resolvedMethodDetails = methodIdResolver.getMethodNameFromId(
-        transaction.methodId.toBigInt(),
+        // transaction.methodId.toBigInt(),
+        Field(transaction.methodId).toBigInt(),
       );
 
       if (!resolvedMethodDetails)
