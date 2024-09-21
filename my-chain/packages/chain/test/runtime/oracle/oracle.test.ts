@@ -28,9 +28,11 @@ describe("Oracle", () => {
 
     appChain.configurePartial({
       Runtime: {
-        // Balances: {
-        //   totalSupply: UInt64.from(10000),
-        // },
+        Oracle: {
+          realAmount: UInt224.from(100),
+          copperPublicKey: PublicKey.fromBase58(COPPER_PUBLIC_KEY),
+          lockAmount: UInt224.from(0),
+        },
       },
     });
 
