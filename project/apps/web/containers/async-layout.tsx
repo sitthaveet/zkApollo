@@ -35,11 +35,12 @@ export default function AsyncLayout({ children }: { children: ReactNode }) {
     <>
       <Header
         loading={client.loading}
-        balance={balances.balances[wallet.wallet ?? ""]}
+        balance={balances.balances[`${wallet.wallet}_mina`]}
         balanceLoading={loading}
         wallet={wallet.wallet}
         onConnectWallet={wallet.connectWallet}
         blockHeight={chain.block?.height ?? "-"}
+        tslaBalance={balances.balances[`${wallet.wallet}_tsla`]}
       />
       {children}
       <Toaster />

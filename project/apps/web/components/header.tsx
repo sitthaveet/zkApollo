@@ -14,6 +14,7 @@ export interface HeaderProps {
   onConnectWallet: () => void;
   balance?: string;
   balanceLoading: boolean;
+  tslaBalance?: string;
   blockHeight?: string;
 }
 
@@ -24,6 +25,7 @@ export default function Header({
   balance,
   balanceLoading,
   blockHeight,
+  tslaBalance
 }: HeaderProps) {
   return (
     <div>
@@ -38,14 +40,14 @@ export default function Header({
             <Separator className="mr-4 h-8 hidden md:block" orientation="vertical" />
             <div className="flex gap-6">
               <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/swap">Buy</a>
-              <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/app">Mint</a>
+              <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/app">Liquidity</a>
               <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/about">About</a>
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
           <a href="/faucet" className=" flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-full text-sm font-bold font-mono hover:bg-blue-700 transition-colors">
-              💧
+              Faucet 💧
             </a>
             {wallet && (
               <div className="flex flex-col items-end justify-center mx-2">
@@ -54,21 +56,21 @@ export default function Header({
                   {balanceLoading && balance === undefined ? (
                     <Skeleton className="h-4 w-full" />
                   ) : (
-                    <p className="text-xs font-bold">{balance} MINA</p>
+                    <p className="text-xs font-bold">{balance} MINA | {tslaBalance} TSLA</p>
                   )}
                 </div>
               </div>
             )}
             <Button loading={loading} onClick={onConnectWallet}>
               <div className="text-sm">
-                {wallet ? truncateMiddle(wallet, 6, 6, "...") : "Connect wallet"}
+                {wallet ? truncateMiddle(wallet, 4, 4, "...") : "Connect wallet"}
               </div>
             </Button>
           </div>
         </div>
       </div>
     </div>
-    <div className="h-10 w-full bg-blue-600" />
+    {/* <div className="h-10 w-full bg-blue-600" /> */}
     </div>
   );
 }

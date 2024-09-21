@@ -55,6 +55,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ethglobal.storage',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
 };
