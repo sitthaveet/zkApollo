@@ -33,12 +33,12 @@ export default function Header({
           <div className="flex items-center">
             <a className="flex items-center gap-2 mr-4" href="/">
               <Image src="/logo.svg" alt="Apollo" width={32} height={32} />
-              <div className="text-xl font-bold font-mono">Apollo</div>
+              <div className="text-xl font-bold font-mono">zkApollo</div>
             </a>
             <Separator className="mr-4 h-8 hidden md:block" orientation="vertical" />
             <div className="flex gap-6">
-              <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/swap">Swap</a>
-              <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/app">Liquidity</a>
+              <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/swap">Buy</a>
+              <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/app">Mint</a>
               <a className="text-sm font-bold font-mono hover:text-blue-600 transition-colors" href="/about">About</a>
             </div>
           </div>

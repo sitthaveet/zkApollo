@@ -16,7 +16,7 @@ export class SyntheticAsset extends RuntimeModule<TokenConfig> {
   @state() public tokenBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
 
   //simulate (USER, USER) > (AMOUNT) mapping using hash as field
-  @state() public approvalBalances = StateMap.from<Field, UInt224>(PublicKey, UInt224); 
+  @state() public approvalBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224); 
   @state() public totalTokenSupply = State.from<UInt224>(UInt224);
   @state() public owner = State.from<PublicKey>(PublicKey)
 
