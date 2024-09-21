@@ -49,7 +49,7 @@ export class SyntheticAsset extends RuntimeModule<TokenConfig> {
   @runtimeMethod() public async getTotalTokenSupply(): Promise<UInt224> {
     return (await this.totalTokenSupply.get()).orElse(UInt224.from(0));
   }
-
+  /*
   @runtimeMethod() public async getTokenApprovalBalance(
     tokenOwner: PublicKey,
     approved: PublicKey,
@@ -57,6 +57,7 @@ export class SyntheticAsset extends RuntimeModule<TokenConfig> {
     const key = Hashed
     return (await this.approvalBalances.get(address)).orElse(UInt224.from(0));
   }
+    */
 
 
   //Mint tokens to a user, only custody contract can call this function

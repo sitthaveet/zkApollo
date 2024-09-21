@@ -8,7 +8,7 @@ import {
 } from "@proto-kit/module";
 import { UInt224, UInt64, Balances } from "@proto-kit/library";
 import { PublicKey, Field, Bool, Provable, Signature, Mina, Struct, provable } from "o1js";
-import { SyntheticAsset } from "./syntheticAsset";
+//import { SyntheticAsset } from "./syntheticAsset";
 import { inject } from "tsyringe";
 
 const divisionBase = 1e10; //check scale doesn't overflow if using 224 bit should not?
@@ -29,8 +29,8 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
  @state() public minaBalance = State.from<UInt224>(UInt224);
  @state() public oraclePublicKey = State.from<PublicKey>(PublicKey);
 
- @state() public syntheticAsset = State.from<SyntheticAsset>(SyntheticAsset);
- @state() public minaAsset = State.from<SyntheticAsset>(SyntheticAsset);
+ //@state() public syntheticAsset = State.from<SyntheticAsset>(SyntheticAsset);
+ //@state() public minaAsset = State.from<SyntheticAsset>(SyntheticAsset);
 
  @state() public custodyBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
  @state() public collateralBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
@@ -112,7 +112,8 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
   public async verifyReserveAmount(signature: Signature, requiredReserve: UInt224, currentReserve: UInt224, id : UInt224): Promise<void> {
 
-    const oraclePublicKey = this.oraclePublicKey.get();
+    const oraclePublicKey = (await this.oraclePublicKey.get()).value;
+    const currentReserveField: Field = Field.from(currentReserve);
     const validSignature = signature.verify(oraclePublicKey, [id, currentReserve]);
     // Check that the signature is valid
     validSignature.assertTrue();
@@ -129,7 +130,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     //---prove supply of custody asset and add into available supply on Mina, deposit Mina as collateral---
 
     const sender = this.transaction.sender.value;
-    const senderId = this.getSenderId(sender);
+    const senderId = await this.getSenderId(sender);
     
     //determine value of mina collateral
     const totalMinaValue = await this.fetchMinaOraclePriceForAmount(minaAmount);
@@ -141,7 +142,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
 
     //transfer amount of Mina Collateral from user
-    (await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
+    //(await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
 
     //Call Verification of Proof of RWA
     await this.verifyReserveAmount(signature, newSupply, reserveAmount, senderId);
@@ -186,7 +187,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
      totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
 
      //return mina collateral from custody to user
-     (await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaAmount);
+     //(await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaAmount);
 
      //record accounting changes
      this.totalSupply.set(existingTotalSupply.sub(removeSupply));
@@ -201,7 +202,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     const sender = this.transaction.sender.value;
 
     //transfer amount of Mina from user for purchase
-    (await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
+    //(await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
 
     //check value of sent Mina
     
@@ -213,7 +214,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     const mintTokenAmount = minaAmountInUSD.mul(divisionBase).div(minaAmountInUSD);
 
     //mint synthetic tokens to user
-    (await this.syntheticAsset.get()).value.mint(sender, mintTokenAmount);
+    //(await this.syntheticAsset.get()).value.mint(sender, mintTokenAmount);
 
     //accounting updates
     const existingUsedSupply = (await this.usedSupply.get()).value;
@@ -234,10 +235,10 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     const minaReturning = tokenValue.mul(divisionBase).div(minaPrice);
 
     //send mina tokens from sale of synthetic asset to user
-    (await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaReturning);
+    //(await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaReturning);
 
     //burn synthetic tokens held by user
-    (await this.syntheticAsset.get()).value.burn(sender, burnTokenAmount);
+    //(await this.syntheticAsset.get()).value.burn(sender, burnTokenAmount);
 
     //accounting update
     const existingUsedSupply = (await this.usedSupply.get()).value;
