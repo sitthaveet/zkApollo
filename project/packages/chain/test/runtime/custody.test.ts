@@ -6,12 +6,17 @@ import {
   Signature,
   method,
   Bool,
+  Field,
 } from "o1js";
 import { CustodyModule } from "../../src/runtime/modules/custody";
 import { log } from "@proto-kit/common";
 import { BalancesKey, TokenId, UInt64, UInt224, Balance } from "@proto-kit/library";
+import { custodian1, custodian2 } from "../../../../api/custodian";
 
 log.setLevel("ERROR");
+const custodyAccount = PublicKey.fromBase58(
+    "B62qkE417nEiCGQphoA68xEGCx6AvvJ3rzoY6dVA6hiV54B98vvPRk2"
+  );
 
 describe("Verify the reserves in custody and mint synthetic asset", () => {
     let appChain: ReturnType<
