@@ -1,5 +1,5 @@
 <p align="center" width="100%">
-    <img width="100%" src="cover.jpg"> 
+    <img width="100%" src="cover.png"> 
 </p>
 
 # zkApollo
