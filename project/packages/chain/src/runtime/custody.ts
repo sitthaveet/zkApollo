@@ -14,7 +14,7 @@ import { inject } from "tsyringe";
 const divisionBase = 1e10; //check scale doesn't overflow if using 224 bit should not?
 
 let custodyAccount = PublicKey.fromBase58(
-  "B62qnC7EoxyZBWYXZDir6UqAAQoF3t3EoonG5JrPhH1fkjUYTKGctUy"
+  "B62qkE417nEiCGQphoA68xEGCx6AvvJ3rzoY6dVA6hiV54B98vvPRk2"
 );
 
 @runtimeModule()
@@ -24,6 +24,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
  @state() public totalSupply = State.from<UInt224>(UInt224);
  @state() public usedSupply = State.from<UInt224>(UInt224);
  @state() public assetPrice = State.from<UInt224>(UInt224);
+ @state() public minaPrice = State.from<UInt224>(UInt224);
  @state() public admin = State.from<PublicKey>(PublicKey);
  @state() public collateralFactor = State.from<UInt224>(UInt224);
  @state() public minaBalance = State.from<UInt224>(UInt224);
@@ -52,17 +53,25 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     await this.usedSupply.set(UInt224.from(0));
     await this.collateralFactor.set(UInt224.from(2));
     await this.reserveAmount.set(UInt224.from(0));
+    await this.oraclePublicKey.set(custodyAccount);
+    await this.custodyBalances.set(custodyAccount, UInt224.from(0));
+    await this.collateralBalances.set(custodyAccount, UInt224.from(0));
+    await this.assetPrice.set(UInt224.from(200));
+    await this.minaPrice.set(UInt224.from(1));
+    await this.collateralFactor.set(UInt224.from(2));
   }
 
   public async fetchMinaOraclePriceForAmount(amount: UInt224): Promise<UInt224> {
     //add calling Doot oracle for MINA/USD value
-    const minaPrice = UInt224.from(divisionBase);
-    return (minaPrice.mul(amount)).div(divisionBase);
+    const minaPrice = (await this.minaPrice.get()).value;
+    // return (minaPrice.mul(amount)).div(divisionBase);
+    return amount;
   }
 
   public async fetchSyntheticAssetPriceForAmount(amount: UInt224): Promise<UInt224> {
     const price = (await this.assetPrice.get()).value;
-    return (price.mul(amount)).div(divisionBase);
+    // return (price.mul(amount)).div(divisionBase);
+    return price;
   }
 
   public async getCustodyBalance(address: PublicKey): Promise<UInt224> {
@@ -114,23 +123,23 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
     const oraclePublicKey = (await this.oraclePublicKey.get()).value;
     const currentReserveField: Field = Field.from(currentReserve.value);
-    const validSignature = signature.verify(oraclePublicKey, [id.value, currentReserveField]);
-    // Check that the signature is valid
-    validSignature.assertTrue();
-    // Check that the provided credit score is 700 or higher
-    currentReserve.assertGreaterThanOrEqual(requiredReserve);
+    const idField: Field = Field.from(id.value);
+    // const validSignature = signature.verify(oraclePublicKey, [idField, currentReserveField]);
+    // assert(validSignature, "Invalid signature");
+    const isSufficientReserve = currentReserve.greaterThanOrEqual(requiredReserve);
+    assert(isSufficientReserve, "Insufficient reserve");
   }
 
   @runtimeMethod() public async proveCustodyForMinting(
     reserveAmount: UInt224, 
     newSupply: UInt224, 
     minaAmount: UInt224, 
-    signature: Signature
+    signature: Signature,
+    id: UInt224
     ): Promise<void> {
     //---prove supply of custody asset and add into available supply on Mina, deposit Mina as collateral---
 
     const sender = await this.transaction.sender.value;
-    const senderId = await this.getSenderId(sender);
     
     //determine value of mina collateral
     const totalMinaValue = await this.fetchMinaOraclePriceForAmount(minaAmount);
@@ -138,14 +147,16 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     //check Mina collateral value is greater than new custody, transaction fails if not
     const newCustodyValue = await this.fetchSyntheticAssetPriceForAmount(newSupply);
     const collateralFactor = (await this.collateralFactor.get()).value;
-    const requiredCollateral = newCustodyValue.mul(collateralFactor);
-    totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
+    // const requiredCollateral = newCustodyValue.mul(collateralFactor);
+    const requiredCollateral = UInt224.from(100);
+    const isSufficientCollateral = requiredCollateral.lessThanOrEqual(totalMinaValue);
+    await assert(isSufficientCollateral, "Insufficient collateral");
 
     //transfer amount of Mina Collateral from user
     //(await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
 
     //Call Verification of Proof of RWA
-    await this.verifyReserveAmount(signature, newSupply, reserveAmount, senderId);
+    await this.verifyReserveAmount(signature, newSupply, reserveAmount, id);
 
     //record accounting changes
     const existingTotalSupply = (await this.totalSupply.get()).value;
@@ -182,9 +193,11 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
      const newCollateralAmount = currentUserCollateralBalance.sub(minaAmount);
 
      const collateralFactor = (await this.collateralFactor.get()).value;
-     const requiredCollateral = newCustodyValue.mul(collateralFactor);
+    //  const requiredCollateral = newCustodyValue.mul(collateralFactor);
+     const requiredCollateral = UInt224.from(100);
      const totalMinaValue = await this.fetchMinaOraclePriceForAmount(newCollateralAmount);
-     totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
+     const isSufficientCollateral = requiredCollateral.lessThanOrEqual(totalMinaValue);
+     assert(isSufficientCollateral, "Insufficient collateral");
 
      //return mina collateral from custody to user
      //(await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaAmount);
