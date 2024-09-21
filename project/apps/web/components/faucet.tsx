@@ -20,7 +20,7 @@ export function Faucet({
 }: FaucetProps) {
   const form = useForm();
   return (
-    <Card className="w-full p-4">
+    <Card className="w-[30rem] p-4">
       <div className="mb-2">
         <h2 className="text-xl font-bold">Faucet</h2>
         <p className="mt-1 text-sm text-zinc-500">

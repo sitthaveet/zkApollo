@@ -1,3 +1,4 @@
+import Footer from "@/components/footer";
 import Header from "@/components/header";
 import { Toaster } from "@/components/ui/toaster";
 import { useBalancesStore, useObserveBalance } from "@/lib/stores/balances";
@@ -42,6 +43,7 @@ export default function AsyncLayout({ children }: { children: ReactNode }) {
       />
       {children}
       <Toaster />
+      <Footer blockHeight={chain.block?.height ?? "-"}/>
     </>
   );
 }
