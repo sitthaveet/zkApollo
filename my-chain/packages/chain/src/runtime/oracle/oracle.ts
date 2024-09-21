@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { State, StateMap, assert } from "@proto-kit/protocol";
 import {
   RuntimeModule,
@@ -5,8 +6,9 @@ import {
   runtimeMethod,
   state,
 } from "@proto-kit/module";
-import { UInt224, UInt64 } from "@proto-kit/library";
+import { UInt224, UInt64, Balances, TokenId } from "@proto-kit/library";
 import { PublicKey, Field, Bool, Provable, Signature } from "o1js";
+import { inject } from "tsyringe";
 
 // public key of Copper
 let _copperPublicKey = PublicKey.fromBase58(
@@ -16,45 +18,45 @@ let _copperPublicKey = PublicKey.fromBase58(
 @runtimeModule()
 export class OracleModule extends RuntimeModule<Record<string, never>> {
   // setup state variables
-  @state() public realAmount = State.from(UInt224);
-  @state() public copperPublicKey = State.from(PublicKey);
-  @state() public lockAmount = State.from(UInt224);
+  @state() public realAmount = State.from<UInt224>(UInt224);
+  @state() public copperPublicKey = State.from<PublicKey>(PublicKey);
+  @state() public lockAmount = State.from<UInt224>(UInt224);
 
-  // init method
-  public constructor() {
+  // constructor (can't set value in state here)
+  public constructor(
+    @inject("Balances") public balances: Balances
+  ) {
     super();
+  }
+
+  // set value in state
+  public async init() {
     this.realAmount.set(UInt224.from(0));
     this.copperPublicKey.set(_copperPublicKey);
     this.lockAmount.set(UInt224.from(0));
   }
 
-  @runtimeMethod() public async init(): Promise<void> {
-    this.realAmount.set(UInt224.from(0));
-    this.copperPublicKey.set(_copperPublicKey);
-    this.lockAmount.set(UInt224.from(0));
-  }
+  // public async getRealAmount(): Promise<UInt224> {
+  //   const realAmount = await this.realAmount.get();
+  //   return UInt224.from(realAmount.value.toString());
+  // }
 
-  public async getRealAmount(): Promise<UInt224> {
-    const realAmount = await this.realAmount.get();
-    return UInt224.from(realAmount.value.toString());
-  }
-
-  public async getLockAmount(): Promise<UInt224> {
-    const lockAmount = await this.lockAmount.get();
-    return UInt224.from(lockAmount.value.toString());
-  }
+  // public async getLockAmount(): Promise<UInt224> {
+  //   const lockAmount = await this.lockAmount.get();
+  //   return UInt224.from(lockAmount.value.toString());
+  // }
 
   public async verifyIfRealAmountIsMoreThanTarget(
     targetAmount: UInt224
   ): Promise<Bool> {
     const realAmount = await this.realAmount.get();
     const isRealAmountMoreThanTarget = targetAmount.lessThanOrEqual(
-      UInt224.from(realAmount.value.toString())
+      realAmount.value
     );
     return isRealAmountMoreThanTarget;
   }
 
-  private async penaltyOwner(): Promise<UInt224> {
+  public async penaltyOwner(): Promise<UInt224> {
     // TODO: implement penalty for Alice
     return UInt224.from(0);
   }
@@ -74,7 +76,7 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
     // assert(validSignature, "Invalid signature");
 
     // set realAmount to the state
-    this.realAmount.set(realAmount);
+    await this.realAmount.set(realAmount);
 
     // Check if real amount is greater or equal to the target amount
     const isRealAmountMoreThanTarget =
@@ -101,7 +103,7 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
     targetAmount: UInt224
   ) {
     // set realAmount to the state
-    this.realAmount.set(realAmount);
+    await this.realAmount.set(realAmount);
 
     // Check if real amount is greater or equal to the target amount
     const isRealAmountMoreThanTarget =

@@ -10,7 +10,7 @@ import {
 } from "o1js";
 import { OracleModule } from "../../../src/runtime/oracle/oracle";
 import { log } from "@proto-kit/common";
-import { BalancesKey, TokenId, UInt64, UInt224 } from "@proto-kit/library";
+import { BalancesKey, TokenId, UInt64, UInt224, Balance } from "@proto-kit/library";
 
 log.setLevel("ERROR");
 
@@ -18,6 +18,30 @@ let COPPER_PUBLIC_KEY =
   "B62qoAE4rBRuTgC42vqvEyUqCGhaZsW58SKVW4Ht8aYqP9UTvxFWBgy";
 
 describe("Oracle", () => {
+    beforeAll(async () => {
+        const appChain = TestingAppChain.fromRuntime({
+            OracleModule,
+          });
+    
+        const alicePrivateKey = PrivateKey.random();
+        const alice = alicePrivateKey.toPublicKey();
+    
+        appChain.configurePartial({
+          Runtime: {
+            OracleModule: {
+            },
+            Balances: {
+                totalSupply: Balance.from(10_000),
+              },
+          },
+        });
+    
+        await appChain.start();
+        const oracle = appChain.runtime.resolve("OracleModule");
+        await oracle.init();
+        appChain.setSigner(alicePrivateKey);
+    });
+    
   it("get initial real amount ", async () => {
     const appChain = TestingAppChain.fromRuntime({
         OracleModule,
@@ -28,21 +52,22 @@ describe("Oracle", () => {
 
     appChain.configurePartial({
       Runtime: {
-        Oracle: {
-          realAmount: UInt224.from(100),
-          copperPublicKey: PublicKey.fromBase58(COPPER_PUBLIC_KEY),
-          lockAmount: UInt224.from(0),
+        OracleModule: {
         },
+        Balances: {
+            totalSupply: Balance.from(10_000),
+          },
       },
     });
 
     await appChain.start();
     const oracle = appChain.runtime.resolve("OracleModule");
+    await oracle.init();
     appChain.setSigner(alicePrivateKey);
-
-    const realAmount = await oracle.getRealAmount();
+    const realAmount = await oracle.penaltyOwner();
     expect(realAmount).toEqual(UInt224.from(0));
   });
+
 
   // it("send API data to check reserve", async () => {
 
