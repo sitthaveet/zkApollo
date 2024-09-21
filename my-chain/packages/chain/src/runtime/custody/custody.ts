@@ -7,6 +7,7 @@ import {
 } from "@proto-kit/module";
 import { UInt224, UInt64 } from "@proto-kit/library";
 import { PublicKey, Field, Bool, Provable, Signature, Mina } from "o1js";
+import { SyntheticAsset } from "../syntheticAsset/syntheticAsset";
 
 const divisionBase = 1e10; //check scale doesn't overflow if using 224 bit should not?
 
@@ -30,6 +31,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
  @state() public assetPrice = State.from<UInt224>(UInt224);
  @state() public admin = State.from<PublicKey>(PublicKey);
  @state() public collateralFactor = State.from<UInt224>(UInt224);
+ @state() public syntheticAsset = State.from<SyntheticAsset>(SyntheticAsset);
 
  @state() public custodyBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
  @state() public collateralBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
@@ -51,7 +53,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
   public async fetchMinaOraclePriceForAmount(amount: UInt224): Promise<UInt224> {
     //call doot oracle for MINA/USD value
-    const minaPrice = UInt224.from(1);
+    const minaPrice = UInt224.from(divisionBase);
     return (minaPrice.mul(amount)).div(divisionBase);
   }
 
@@ -61,9 +63,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
   }
 
   public async getCustodyBalance(address: PublicKey): Promise<UInt224> {
-    const balance = (await this.custodyBalances.get(address)); //.orElse(UInt224.from(0));
-    // Instantiate the UInt64 struct, only required if you're storing structs in the state
-    return balance.value;
+    return (await this.custodyBalances.get(address)).orElse(UInt224.from(0));
   }
 
   public setCustodyBalance(address: PublicKey, amount: UInt224) {
@@ -71,9 +71,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
   }
 
   public async getCollateralBalance(address: PublicKey): Promise<UInt224> {
-    const balance = (await this.collateralBalances.get(address)); //.orElse(UInt224.from(0));
-    // Instantiate the UInt64 struct, only required if you're storing structs in the state
-    return balance.value;
+    return (await this.collateralBalances.get(address)).orElse(UInt224.from(0));
   }
 
   public setCollateralBalance(address: PublicKey, amount: UInt224) {
@@ -91,16 +89,14 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
 
   @runtimeMethod() public async proveCustody(newSupply: UInt224): Promise<void> {
-    //prove supply of custody asset and add into available supply on Mina, deposit Mina as collateral
+    //---prove supply of custody asset and add into available supply on Mina, deposit Mina as collateral---
     
     
 
     //check amount of transfered Mina Collateral
 
-    //Mina.getBalance(sender);
-
     //determine value of mina collateral
-    const minaAmount = UInt224.from(1);
+    const minaAmount = UInt224.from(divisionBase);
     const totalMinaValue = await this.fetchMinaOraclePriceForAmount(minaAmount);
 
     //check Mina collateral value is greater than new custody 
@@ -129,7 +125,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 }
 
 @runtimeMethod() public async removeCustody(removeSupply: UInt224): Promise<void> {
-    //Remove unused existing available supply from Mina, refund mina deposit collateral
+    //---Remove unused existing available supply from Mina, refund mina deposit collateral---
 
     //check there is sufficient unused custody asset to remove
     const existingTotalSupply = (await this.totalSupply.get()).value;
@@ -139,8 +135,8 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     freeSupply.assertGreaterThanOrEqual(removeSupply);
 
     //return mina collateral
-
-    const minaReturned = 1;
+    
+    const minaReturned = UInt224.from(divisionBase);
 
     //record accounting changes
     const sender = this.transaction.sender.value
@@ -157,30 +153,51 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     
   }
 
-@runtimeMethod() public async mintTokens(mintTokenAmount: UInt224): Promise<void> {
-    //User requests to use synthetic token, paying in Mina
+@runtimeMethod() public async mintTokens(): Promise<void> {
+    //---User requests to use synthetic token, paying in Mina---
 
     //check value of sent Mina
+    const minaReceived = UInt224.from(divisionBase);
+    const minaAmountInUSD = await this.fetchMinaOraclePriceForAmount(minaReceived);
 
-    //check value of requested tokens to mint is less than or equal to sent mina value
+    //convert total amount into syntheticAsset quantity
+    const tokenPrice = await this.fetchSyntheticAssetPriceForAmount(UInt224.from(divisionBase));
+
+    const mintTokenAmount = minaAmountInUSD.mul(divisionBase).div(minaAmountInUSD);
 
     //mint synthetic tokens to user
+    const sender = this.transaction.sender.value;
+
+    (await this.syntheticAsset.get()).value.mint(sender, mintTokenAmount);
 
     //accounting updates
+    const existingUsedSupply = (await this.usedSupply.get()).value;
+    this.usedSupply.set(existingUsedSupply.add(mintTokenAmount));
   }
 
 @runtimeMethod() public async burnTokens(burnTokenAmount: UInt224): Promise<void> {
-    //User requests to return synthetic token, selling in Mina
+    //---User requests to return synthetic token, selling in Mina---
 
     //check value of tokens requesting to burn 
+    const tokenValue = await this.fetchSyntheticAssetPriceForAmount(burnTokenAmount);
 
     //determine how many mina tokens this is
+    const minaPrice = await this.fetchMinaOraclePriceForAmount(UInt224.from(divisionBase)); //price of 1 Mina token
+
+    const minaReturning = tokenValue.mul(divisionBase).div(minaPrice);
 
     //send mina tokens to user
 
     //burn synthetic tokens held by user
+    const sender = this.transaction.sender.value;
+
+    (await this.syntheticAsset.get()).value.burn(sender, burnTokenAmount);
 
     //accounting update
+    const existingUsedSupply = (await this.usedSupply.get()).value;
+    this.usedSupply.set(existingUsedSupply.sub(burnTokenAmount));
+
+    //should probably record total Mina collateral in system also
   }
 
 }
