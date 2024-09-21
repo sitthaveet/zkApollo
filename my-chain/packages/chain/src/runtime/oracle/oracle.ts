@@ -75,15 +75,16 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
     const penaltyAction = Provable.if(
       // check if real amount is more than target amount
       isRealAmountMoreThanTarget,
-      // // if reserve > target
-      // await this.getLockAmount(),
-
-      // // if reserve < target, penalty Alice and return false
+      // if reserve > target
+      await this.getLockAmount().toField(),
+      //this.emitEvent("verified", realAmount)
+      this.
+      // if reserve < target, penalty Alice and return false
       // await this.penaltyOwner()
     );  
 
     // set lock amount to the state
-    // this.lockAmount.set(UInt224.from(penaltyAction));
+    this.lockAmount.set(UInt224.from(penaltyAction));
   }
 
 
