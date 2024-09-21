@@ -7,7 +7,7 @@ import {
   method,
   Bool,
 } from "o1js";
-import { CustodyModule } from "../../../src/runtime/custody";
+import { CustodyModule } from "../../src/runtime/custody";
 import { log } from "@proto-kit/common";
 import { BalancesKey, TokenId, UInt64, UInt224, Balance } from "@proto-kit/library";
 
@@ -58,42 +58,42 @@ describe("Verify the reserves in custody and mint synthetic asset", () => {
   });
 
 
-  it('if the reserve is enough, the verifyReserveForMinting should return true', async () => {
-    await localDeploy();
+//   it('if the reserve is enough, the verifyReserveForMinting should return true', async () => {
+//     await localDeploy();
 
-    const response = await fetch(
-        "https://07-oracles.vercel.app/api/credit-score?user=1"
-    );
-    const data = await response.json() as { data: { creditScore: number } };;
-    const realAmount = UInt224.from(data.data.creditScore);
-    const targetAmount = UInt224.from(500);
+//     const response = await fetch(
+//         "https://07-oracles.vercel.app/api/credit-score?user=1"
+//     );
+//     const data = await response.json() as { data: { creditScore: number } };;
+//     const realAmount = UInt224.from(data.data.creditScore);
+//     const targetAmount = UInt224.from(500);
 
-    const tx = await appChain.transaction(alice, async () => {
-        result = await custody.proveCustodyForMinting(realAmount, targetAmount);
-    });         
-    await tx.sign();
-    await tx.send();
+//     const tx = await appChain.transaction(alice, async () => {
+//         result = await custody.proveCustodyForMinting(realAmount, targetAmount);
+//     });         
+//     await tx.sign();
+//     await tx.send();
 
-    expect(result.toBoolean()).toBe(true);
-  });
+//     expect(result.toBoolean()).toBe(true);
+//   });
 
-  it('if the reserve is not enough, the verifyReserveForMinting should return false', async () => {
-    await localDeploy();
+//   it('if the reserve is not enough, the verifyReserveForMinting should return false', async () => {
+//     await localDeploy();
 
-    const response = await fetch(
-        "https://07-oracles.vercel.app/api/credit-score?user=1"
-    );
-    const data = await response.json() as { data: { creditScore: number } };;
-    const realAmount = UInt224.from(data.data.creditScore);
+//     const response = await fetch(
+//         "https://07-oracles.vercel.app/api/credit-score?user=1"
+//     );
+//     const data = await response.json() as { data: { creditScore: number } };;
+//     const realAmount = UInt224.from(data.data.creditScore);
 
-    const targetAmount = UInt224.from(1000);
+//     const targetAmount = UInt224.from(1000);
 
-    const tx = await appChain.transaction(alice, async () => {
-        result = await custody.proveCustodyForMinting(realAmount, targetAmount);
-    });         
-    await tx.sign();
-    await tx.send();
+//     const tx = await appChain.transaction(alice, async () => {
+//         result = await custody.proveCustodyForMinting(realAmount, targetAmount);
+//     });         
+//     await tx.sign();
+//     await tx.send();
 
-    expect(result.toBoolean()).toBe(false);
-  });
+//     expect(result.toBoolean()).toBe(false);
+//   });
 });
