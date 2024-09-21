@@ -1,7 +1,5 @@
 import { TestingAppChain } from "@proto-kit/sdk";
 import {
-  Field,
-  Mina,
   PrivateKey,
   PublicKey,
   AccountUpdate,
@@ -63,40 +61,43 @@ describe("Oracle", () => {
     expect(realAmount).toEqual(UInt224.from(0));
   });
 
+
+  it('if the reserve is enough, the verifyReserveForMinting should return true', async () => {
+    await localDeploy();
+
+    const response = await fetch(
+        "https://07-oracles.vercel.app/api/credit-score?user=1"
+    );
+    const data = await response.json() as { data: { creditScore: number } };;
+    const realAmount = UInt224.from(data.data.creditScore);
+    const targetAmount = UInt224.from(500);
+
+    const tx = await appChain.transaction(alice, async () => {
+        result = await oracle.verifyReserveForMinting(realAmount, targetAmount);
+    });         
+    await tx.sign();
+    await tx.send();
+
+    expect(result.toBoolean()).toBe(true);
+  });
+
   it('if the reserve is not enough, the verifyReserveForMinting should return false', async () => {
     await localDeploy();
 
-    const realAmount = UInt224.from(787);
+    const response = await fetch(
+        "https://07-oracles.vercel.app/api/credit-score?user=1"
+    );
+    const data = await response.json() as { data: { creditScore: number } };;
+    const realAmount = UInt224.from(data.data.creditScore);
+
     const targetAmount = UInt224.from(1000);
 
-    const txn = await Mina.transaction(alice, async () => {
-       result = await oracle.verifyReserveForMinting(realAmount, targetAmount);
-    });
-    await txn.prove();
-    await txn.sign([alicePrivateKey]).send();
+    const tx = await appChain.transaction(alice, async () => {
+        result = await oracle.verifyReserveForMinting(realAmount, targetAmount);
+    });         
+    await tx.sign();
+    await tx.send();
 
     expect(result.toBoolean()).toBe(false);
   });
-
-
-//   it("send API data to check reserve", async () => {
-
-//       const response = await fetch(
-//         "https://07-oracles.vercel.app/api/credit-score?user=1"
-//       );
-//       const data = await response.json();
-
-//       const creditScore = Field(data.data.creditScore);
-//       const signature = Signature.fromBase58(data.signature);
-
-//       const txn = await Mina.transaction(senderAccount, async () => {
-//         await zkApp.verify(id, creditScore, signature);
-//       });
-//       await txn.prove();
-//       await txn.sign([senderKey]).send();
-
-//       const events = await zkApp.fetchEvents();
-//       const verifiedEventValue = events[0].event.data.toFields(null)[0];
-//       expect(verifiedEventValue).toEqual(id);
-//     });
 });
