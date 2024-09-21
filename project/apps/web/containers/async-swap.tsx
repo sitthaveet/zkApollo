@@ -98,7 +98,7 @@ export default function App() {
 
           <div className="flex flex-col items-center justify-center border border-slate-200 rounded-xl p-2">
           <p className="text-center text-sm text-gray-600">
-            1 MINA = {200} TSLA
+            200 MINA = {1} TSLA
           </p>
           <Separator className="my-2" />
           <p className="text-center text-sm text-gray-600">
