@@ -30,21 +30,22 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
   }
 
   // set value in state
+  @runtimeMethod()
   public async init() {
-    this.realAmount.set(UInt224.from(0));
-    this.copperPublicKey.set(_copperPublicKey);
-    this.lockAmount.set(UInt224.from(0));
+    await this.realAmount.set(UInt224.from(0));
+    await this.copperPublicKey.set(_copperPublicKey);
+    await this.lockAmount.set(UInt224.from(0));
   }
 
-  // public async getRealAmount(): Promise<UInt224> {
-  //   const realAmount = await this.realAmount.get();
-  //   return UInt224.from(realAmount.value.toString());
-  // }
+  public async getRealAmount(): Promise<UInt224> {
+    const realAmount = await this.realAmount.get();
+    return realAmount.value;
+  }
 
-  // public async getLockAmount(): Promise<UInt224> {
-  //   const lockAmount = await this.lockAmount.get();
-  //   return UInt224.from(lockAmount.value.toString());
-  // }
+  public async getLockAmount(): Promise<UInt224> {
+    const lockAmount = await this.lockAmount.get();
+    return lockAmount.value;
+  }
 
   public async verifyIfRealAmountIsMoreThanTarget(
     targetAmount: UInt224
@@ -56,24 +57,17 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
     return isRealAmountMoreThanTarget;
   }
 
-  public async penaltyOwner(): Promise<UInt224> {
-    // TODO: implement penalty for Alice
-    return UInt224.from(0);
-  }
+  // public async penaltyOwner(): Promise<UInt224> {
+  //   // TODO: implement penalty for Alice
+  //   return UInt224.from(0);
+  // }
 
   // method oracle verify response from Copper API for checking from their client
   @runtimeMethod()
   public async verifyReserve(
     realAmount: UInt224,
-    signature: Signature,
     targetAmount: UInt224
   ) {
-    // // Get the oracle public key from the zkApp state
-    // const copperPublicKey = this.copperPublicKey.get();
-
-    // // Evaluate whether the signature is valid for the provided data
-    // const validSignature = signature.verify(copperPublicKey, [realAmount.toString()]);
-    // assert(validSignature, "Invalid signature");
 
     // set realAmount to the state
     await this.realAmount.set(realAmount);
@@ -101,17 +95,20 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
   public async verifyReserveForMinting(
     realAmount: UInt224,
     targetAmount: UInt224
-  ) {
+  ): Promise<Bool> {
     // set realAmount to the state
     await this.realAmount.set(realAmount);
 
     // Check if real amount is greater or equal to the target amount
     const isRealAmountMoreThanTarget =
       await this.verifyIfRealAmountIsMoreThanTarget(targetAmount);
+
     assert(
       isRealAmountMoreThanTarget,
       "You have not enough reserves to mint the synthetic asset"
     );
+
+    return isRealAmountMoreThanTarget;
 
     // implement lock MINA on-chain
 
