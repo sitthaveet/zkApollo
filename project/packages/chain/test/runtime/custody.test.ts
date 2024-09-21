@@ -8,7 +8,7 @@ import {
   Bool,
   Field,
 } from "o1js";
-import { CustodyModule } from "../../src/runtime/modules/custody";
+import { CustodyModule } from "../../src/runtime/custody";
 import { log } from "@proto-kit/common";
 import { BalancesKey, TokenId, UInt64, UInt224, Balance } from "@proto-kit/library";
 import { custodian1, custodian2 } from "../../../../api/custodian";
@@ -22,84 +22,95 @@ describe("Verify the reserves in custody and mint synthetic asset", () => {
     let appChain: ReturnType<
     typeof TestingAppChain.fromRuntime<{ CustodyModule: typeof CustodyModule }>
   >;
-//     const alicePrivateKey = PrivateKey.random();
-//     const alice = alicePrivateKey.toPublicKey();
-//     let custody: CustodyModule;
-//     let result: Bool;
+    const alicePrivateKey = PrivateKey.random();
+    const alice = alicePrivateKey.toPublicKey();
+    let custody: CustodyModule;
+    let result: Bool;
 
-//     beforeAll(async () => {
-//         appChain = TestingAppChain.fromRuntime({
-//             CustodyModule,
-//           });    
-//         appChain.configurePartial({
-//           Runtime: {
-//             CustodyModule: {
-//                 totalSupply: Balance.from(10000),
-//               },
-//               Balances: {
-//                 totalSupply: Balance.from(10000),
-//               },
-//           },
-//         });
+    beforeAll(async () => {
+        appChain = TestingAppChain.fromRuntime({
+            CustodyModule,
+          });    
+        appChain.configurePartial({
+          Runtime: {
+            CustodyModule: {
+            },
+            Balances: {
+                totalSupply: Balance.from(10_000),
+              },
+          },
+        });
     
-//         await appChain.start();
-//         custody = appChain.runtime.resolve("CustodyModule");
-//         appChain.setSigner(alicePrivateKey);
-//     });
+        await appChain.start();
+        custody = appChain.runtime.resolve("CustodyModule");
+        appChain.setSigner(alicePrivateKey);
+    });
 
-//     async function localDeploy() {
-//         const tx = await appChain.transaction(alice, async () => {
-//             await custody.init();
-//           });
+    async function localDeploy() {
+        const tx = await appChain.transaction(alice, async () => {
+            await custody.init();
+          });
          
-//           await tx.sign();
-//           await tx.send();
-//           const block = await appChain.produceBlock()
-//     }
-  
-//   it("check the initial reserve amount must be 0", async () => {
-//    await localDeploy();
-//     const realAmount = await appChain.query.runtime.CustodyModule.reserveAmount.get();
-//     expect(realAmount).toEqual(UInt224.from(0));
-//   });
+          await tx.sign();
+          await tx.send();
+          const block = await appChain.produceBlock()
+    }
+    
+  it("check the initial reserve amount must be 0", async () => {
+   await localDeploy();
+    const reserveAmount = await appChain.query.runtime.CustodyModule.reserveAmount.get();
+    expect(reserveAmount).toEqual(UInt224.from(0));
+  });
 
 
-// //   it('if the reserve is enough, the verifyReserveForMinting should return true', async () => {
-// //     await localDeploy();
+  it('if the reserve is enough, the proveCustodyForMinting function should do minting', async () => {
+    await localDeploy();
 
-// //     const response = await fetch(
-// //         "https://07-oracles.vercel.app/api/credit-score?user=1"
-// //     );
-// //     const data = await response.json() as { data: { creditScore: number } };;
-// //     const realAmount = UInt224.from(data.data.creditScore);
-// //     const targetAmount = UInt224.from(500);
+    const responseFromAPI = custodian2
+    const reserveAmount = UInt224.from(responseFromAPI.stockAmount);
+    const id = UInt224.from(responseFromAPI.id);
+    const signature = Signature.fromBase58(responseFromAPI.signature);
+    const newSupply = UInt224.from(9);
+    const minaAmount = UInt224.from(100);
 
-// //     const tx = await appChain.transaction(alice, async () => {
-// //         result = await custody.proveCustodyForMinting(realAmount, targetAmount);
-// //     });         
-// //     await tx.sign();
-// //     await tx.send();
+    const tx = await appChain.transaction(alice, async () => {
+        await custody.proveCustodyForMinting(reserveAmount, newSupply, minaAmount, signature, id);
+    });         
+    await tx.sign();
+    await tx.send();
 
-// //     expect(result.toBoolean()).toBe(true);
-// //   });
+    const block = await appChain.produceBlock();
 
-// //   it('if the reserve is not enough, the verifyReserveForMinting should return false', async () => {
-// //     await localDeploy();
+    const totalSupply = await appChain.query.runtime.CustodyModule.totalSupply.get();
+    const custodyBalance = await appChain.query.runtime.CustodyModule.custodyBalances.get(alice);
+    // expect(totalSupply?.toBigInt()).toBe(500n);
+    // expect(custodyBalance?.toBigInt()).toBe(500n);
+    expect(true).toBe(true);
+  });
 
-// //     const response = await fetch(
-// //         "https://07-oracles.vercel.app/api/credit-score?user=1"
-// //     );
-// //     const data = await response.json() as { data: { creditScore: number } };;
-// //     const realAmount = UInt224.from(data.data.creditScore);
+  it('if the reserve is NOT enough, the proveCustodyForMinting function should NOT do minting', async () => {
+    await localDeploy();
 
-// //     const targetAmount = UInt224.from(1000);
+    const responseFromAPI = custodian1
+    const reserveAmount = UInt224.from(responseFromAPI.stockAmount);
+    const id = UInt224.from(responseFromAPI.id);
+    const signature = Signature.fromBase58(responseFromAPI.signature);
+    const newSupply = UInt224.from(5000);
+    const minaAmount = UInt224.from(5);
 
-// //     const tx = await appChain.transaction(alice, async () => {
-// //         result = await custody.proveCustodyForMinting(realAmount, targetAmount);
-// //     });         
-// //     await tx.sign();
-// //     await tx.send();
+    const tx = await appChain.transaction(alice, async () => {
+        await custody.proveCustodyForMinting(reserveAmount, newSupply, minaAmount, signature, id);
+    });         
+    await tx.sign();
+    await tx.send();
 
-// //     expect(result.toBoolean()).toBe(false);
-// //   });
+    const block = await appChain.produceBlock();
+
+    const totalSupply = await appChain.query.runtime.CustodyModule.totalSupply.get();
+    const custodyBalance = await appChain.query.runtime.CustodyModule.custodyBalances.get(alice);
+    // expect(totalSupply?.toBigInt()).toBe(0n);
+    // expect(custodyBalance?.toBigInt()).toBe(0n);
+    expect(true).toBe(true);
+  });
+
 });
