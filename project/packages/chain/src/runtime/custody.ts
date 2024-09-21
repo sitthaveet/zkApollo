@@ -22,7 +22,10 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
  @state() public assetPrice = State.from<UInt224>(UInt224);
  @state() public admin = State.from<PublicKey>(PublicKey);
  @state() public collateralFactor = State.from<UInt224>(UInt224);
+ @state() public minaBalance = State.from<UInt224>(UInt224);
+
  @state() public syntheticAsset = State.from<SyntheticAsset>(SyntheticAsset);
+ @state() public minaAsset = State.from<SyntheticAsset>(SyntheticAsset);
 
  @state() public custodyBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
  @state() public collateralBalances = StateMap.from<PublicKey, UInt224>(PublicKey, UInt224);
@@ -46,7 +49,7 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
   }
 
   public async fetchMinaOraclePriceForAmount(amount: UInt224): Promise<UInt224> {
-    //call doot oracle for MINA/USD value
+    //add calling Doot oracle for MINA/USD value
     const minaPrice = UInt224.from(divisionBase);
     return (minaPrice.mul(amount)).div(divisionBase);
   }
@@ -82,22 +85,21 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
 
   @runtimeMethod() public async proveCustodyForMinting(reserveAmount: UInt224, requiredAmount: UInt224, newSupply: UInt224): Promise<void> {
-    //---prove supply of custody asset and add mTSLA into available supply on AppChain, deposit Mina as collateral---
-    
-    
+    //---prove supply of custody asset and add into available supply on Mina, deposit Mina as collateral---
 
-    //check amount of transfered Mina Collateral
-
+    const sender = this.transaction.sender.value;
+    
     //determine value of mina collateral
-    const minaAmount = UInt224.from(divisionBase);
     const totalMinaValue = await this.fetchMinaOraclePriceForAmount(minaAmount);
 
-    //check Mina collateral value is greater than new custody 
+    //check Mina collateral value is greater than new custody, transaction fails if not
     const newCustodyValue = await this.fetchSyntheticAssetPriceForAmount(newSupply);
     const collateralFactor = (await this.collateralFactor.get()).value;
     const requiredCollateral = newCustodyValue.mul(collateralFactor);
-    const isMinaValueMoreThanRequired = totalMinaValue.greaterThanOrEqual(requiredCollateral);
-    assert(isMinaValueMoreThanRequired, "Your collateral value is less than required");
+    totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
+
+    //transfer amount of Mina Collateral from user
+    (await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
 
     //Call Verification of Proof of RWA here!
       // set realAmount to the state
@@ -111,54 +113,65 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
       );
 
     //record accounting changes
-    const sender = await this.transaction.sender.value;
     const existingTotalSupply = (await this.totalSupply.get()).value;
-    await this.totalSupply.set(existingTotalSupply.add(newSupply));
+    this.totalSupply.set(existingTotalSupply.add(newSupply));
 
     const currentUserCustodyBalance = await this.getCustodyBalance(sender);
     const newCustodyAmount = currentUserCustodyBalance.add(newSupply);
-    await this.setCustodyBalance(sender, newCustodyAmount);
+    this.setCustodyBalance(sender, newCustodyAmount);
 
     const currentUserCollateralBalance = await this.getCollateralBalance(sender);
     const newCollateralAmount = currentUserCollateralBalance.add(minaAmount);
-    await this.setCollateralBalance(sender, newCollateralAmount);
+    this.setCollateralBalance(sender, newCollateralAmount);
 
 }
 
 @runtimeMethod() public async removeCustody(removeSupply: UInt224): Promise<void> {
-    //---Remove unused existing available mTSLA supply from Mina, refund mina deposit collateral---
+     //---Remove unused existing available supply from Mina, refund mina deposit collateral---
 
-    //check there is sufficient unused custody asset to remove
-    const existingTotalSupply = (await this.totalSupply.get()).value;
-    const existingUsedSupply = (await this.usedSupply.get()).value;
+     const sender = this.transaction.sender.value;
 
-    const freeSupply = existingTotalSupply.sub(existingUsedSupply);
-    const isFreeSupplyMoreThanRemoveSupply = removeSupply.lessThanOrEqual(freeSupply);
-    assert(isFreeSupplyMoreThanRemoveSupply, "You hit the minimum amount of required amount in your custody");
+     //check there is sufficient unused custody asset to remove
+     const existingTotalSupply = (await this.totalSupply.get()).value;
+     const existingUsedSupply = (await this.usedSupply.get()).value;
 
-    //return mina collateral
-    
-    const minaReturned = UInt224.from(divisionBase);
+     const freeSupply = existingTotalSupply.sub(existingUsedSupply);
+     freeSupply.assertGreaterThanOrEqual(removeSupply);
 
-    //record accounting changes
-    const sender = await this.transaction.sender.value
-    await this.totalSupply.set(existingTotalSupply.sub(removeSupply));
+     //check removing mina collateral doesn't reduce custody below collateral requirements
+     const currentUserCustodyBalance = await this.getCustodyBalance(sender);
+     const newCustodyAmount = currentUserCustodyBalance.sub(removeSupply);
+     const newCustodyValue = await this.fetchSyntheticAssetPriceForAmount(newCustodyAmount);
 
-    const currentUserCustodyBalance = await this.getCustodyBalance(sender);
-    const newCustodyAmount = currentUserCustodyBalance.sub(removeSupply);
-    await this.setCustodyBalance(sender, newCustodyAmount);
+     const currentUserCollateralBalance = await this.getCollateralBalance(sender);
+     const newCollateralAmount = currentUserCollateralBalance.sub(minaAmount);
 
-    const currentUserCollateralBalance = await this.getCollateralBalance(sender);
-    const newCollateralAmount = currentUserCollateralBalance.sub(minaReturned);
-    await this.setCollateralBalance(sender, newCollateralAmount);
+     const collateralFactor = (await this.collateralFactor.get()).value;
+     const requiredCollateral = newCustodyValue.mul(collateralFactor);
+     const totalMinaValue = await this.fetchMinaOraclePriceForAmount(newCollateralAmount);
+     totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
+
+     //return mina collateral from custody to user
+     (await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaAmount);
+
+     //record accounting changes
+     this.totalSupply.set(existingTotalSupply.sub(removeSupply));
+     this.setCustodyBalance(sender, newCustodyAmount);
+     this.setCollateralBalance(sender, newCollateralAmount);
+
+   
   }
 
-@runtimeMethod() public async mintTokens(): Promise<void> {
+@runtimeMethod() public async mintTokens(minaAmount: UInt224): Promise<void> {
     //---User requests to use synthetic token, paying in Mina---
+    const sender = this.transaction.sender.value;
+
+    //transfer amount of Mina from user for purchase
+    (await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
 
     //check value of sent Mina
-    const minaReceived = UInt224.from(divisionBase);
-    const minaAmountInUSD = await this.fetchMinaOraclePriceForAmount(minaReceived);
+    
+    const minaAmountInUSD = await this.fetchMinaOraclePriceForAmount(minaAmount);
 
     //convert total amount into syntheticAsset quantity
     const tokenPrice = await this.fetchSyntheticAssetPriceForAmount(UInt224.from(divisionBase));
@@ -166,17 +179,17 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
     const mintTokenAmount = minaAmountInUSD.mul(divisionBase).div(minaAmountInUSD);
 
     //mint synthetic tokens to user
-    const sender = await this.transaction.sender.value;
-
     (await this.syntheticAsset.get()).value.mint(sender, mintTokenAmount);
 
     //accounting updates
     const existingUsedSupply = (await this.usedSupply.get()).value;
-    await this.usedSupply.set(existingUsedSupply.add(mintTokenAmount));
+    this.usedSupply.set(existingUsedSupply.add(mintTokenAmount));
   }
 
-@runtimeMethod() public async burnTokens(burnTokenAmount: UInt224): Promise<void> {
+  @runtimeMethod() public async burnTokens(burnTokenAmount: UInt224): Promise<void> {
     //---User requests to return synthetic token, selling in Mina---
+
+    const sender = this.transaction.sender.value;
 
     //check value of tokens requesting to burn 
     const tokenValue = await this.fetchSyntheticAssetPriceForAmount(burnTokenAmount);
@@ -186,18 +199,16 @@ export class CustodyModule extends RuntimeModule<Record<string, never>> {
 
     const minaReturning = tokenValue.mul(divisionBase).div(minaPrice);
 
-    //send mina tokens to user
+    //send mina tokens from sale of synthetic asset to user
+    (await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaReturning);
 
     //burn synthetic tokens held by user
-    const sender = await this.transaction.sender.value;
-
     (await this.syntheticAsset.get()).value.burn(sender, burnTokenAmount);
 
     //accounting update
     const existingUsedSupply = (await this.usedSupply.get()).value;
-    await this.usedSupply.set(existingUsedSupply.sub(burnTokenAmount));
+    this.usedSupply.set(existingUsedSupply.sub(burnTokenAmount));
 
-    //should probably record total Mina collateral in system also
   }
 
 }
