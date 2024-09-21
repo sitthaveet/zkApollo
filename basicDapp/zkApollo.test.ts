@@ -1,3 +1,4 @@
+import { sender } from 'o1js/dist/node/lib/mina/mina';
 import { zkApollo } from './zkApollo';
 
 import {
@@ -8,6 +9,7 @@ import {
   AccountUpdate,
   Signature,
   UInt64,
+  MerkleMap
 } from 'o1js';
 
 let proofsEnabled = false;
@@ -57,8 +59,18 @@ describe('Begin.js', () => {
 
     it('should allow a user to supply tokens via custody', async () => {
       const newSupply = new UInt64(100);
+      const map = new MerkleMap();
+      const userSupplyBefore = new UInt64(0);
+      const senderPrivateKey = aliceKey;
+      const key = senderPrivateKey.toPublicKey().x; //quick hack, use x coordinate only as key NOT SECURE
+      const keyWitness = map.getWitness(key);
+      
       const txn = await Mina.transaction(aliceAccount, async () => {
-        await zkApp.proveCustody(newSupply);
+        await zkApp.proveCustody(
+          newSupply,
+          userSupplyBefore,
+          keyWitness,
+          senderPrivateKey);
       });
       await txn.prove();
       await txn.sign([aliceKey]).send();
@@ -72,8 +84,74 @@ describe('Begin.js', () => {
     });
 
     it('should allow a user to remove tokens already supplied if not used', async () => {
+      const newSupply = new UInt64(100);
+      const map = new MerkleMap();
+      const userSupplyBefore = new UInt64(0);
+      const senderPrivateKey = aliceKey;
+      const key = senderPrivateKey.toPublicKey().x; //quick hack, use x coordinate only as key NOT SECURE
+      const keyWitness = map.getWitness(key);
+      
+      const txn = await Mina.transaction(aliceAccount, async () => {
+        await zkApp.proveCustody(
+          newSupply,
+          userSupplyBefore,
+          keyWitness,
+          senderPrivateKey);
+      });
+      await txn.prove();
+      await txn.sign([aliceKey]).send();
+      
+      const tokensToBurn = newSupply;
+      const userSupplyAfter = userSupplyBefore.add(newSupply);
+      const keyWitness2 = map.getWitness(key);
 
+      const txn2 = await Mina.transaction(aliceAccount, async () => {
+        await zkApp.removeCustody(
+          tokensToBurn,
+          userSupplyAfter,
+          senderPrivateKey,
+          keyWitness2
+        );
+      });
+      await txn2.prove();
+      await txn2.sign([aliceKey]).send();
     });
+
+    it('should not allow wrong user to remove unused tokens already supplied', async () => {
+      //set up params for tx1
+      const newSupply = new UInt64(100);
+      const map = new MerkleMap();
+      const userSupplyBefore = new UInt64(0);
+      const senderPrivateKey = aliceKey;
+      const key = senderPrivateKey.toPublicKey().x; //quick hack, use x coordinate only as key NOT SECURE
+      const keyWitness = map.getWitness(key);
+      
+      const txn = await Mina.transaction(aliceAccount, async () => {
+        await zkApp.proveCustody(
+          newSupply,
+          userSupplyBefore,
+          keyWitness,
+          senderPrivateKey);
+      });
+
+      await txn.prove();
+      await txn.sign([aliceKey]).send();
+
+      //set up params for tx 2
+      const tokensToBurn = newSupply;
+      const userSupplyAfter = userSupplyBefore.add(newSupply);
+      const keyWitness2 = map.getWitness(key);
+
+      expect(async () => {
+        const txn2 = await Mina.transaction(aliceAccount, async () => {
+        await zkApp.removeCustody(
+          tokensToBurn,
+          userSupplyAfter,
+          senderPrivateKey,
+          keyWitness2
+        );
+      })
+    }).rejects;
 
 
     it('should allow a user to mint synthetic tokens if token is supplied', async () => {
@@ -87,20 +165,31 @@ describe('Begin.js', () => {
 
     it('should not allow a user to remove more tokens than exist', async () => {
       await localDeploy();
+      const senderPrivateKey = aliceKey;
+      const key = senderPrivateKey.toPublicKey().x; //quick hack, use x coordinate only as key NOT SECURE
+      const keyWitness = map.getWitness(key);
       const tokensToBurn = new UInt64(1);
+      const userSupplyAfter = userSupplyBefore.add(newSupply);
+
       expect(async () => {
         const txn = await Mina.transaction(aliceAccount, async () => {
-          await zkApp.removeCustody(tokensToBurn);
-        });
-      }).rejects;
+        await zkApp.removeCustody(
+          tokensToBurn,
+          userSupplyAfter,
+          senderPrivateKey,
+          keyWitness
+        );
+      })
+    }).rejects;
     });
 
     it('should not allow a user to mint more synthetic tokens than exist', async () => {
       await localDeploy();
+      const senderPrivateKey = aliceKey;
       const tokensToMint = new UInt64(1);
       expect(async () => {
         const txn = await Mina.transaction(aliceAccount, async () => {
-          await zkApp.mintTokens(tokensToMint);
+          await zkApp.mintTokens(tokensToMint, senderPrivateKey);
         });
       }).rejects;
     });
