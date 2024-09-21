@@ -1,7 +1,5 @@
 import { TestingAppChain } from "@proto-kit/sdk";
 import {
-  Field,
-  Mina,
   PrivateKey,
   PublicKey,
   AccountUpdate,
@@ -102,26 +100,4 @@ describe("Oracle", () => {
 
     expect(result.toBoolean()).toBe(false);
   });
-
-
-//   it("send API data to check reserve", async () => {
-
-//       const response = await fetch(
-//         "https://07-oracles.vercel.app/api/credit-score?user=1"
-//       );
-//       const data = await response.json();
-
-//       const creditScore = Field(data.data.creditScore);
-//       const signature = Signature.fromBase58(data.signature);
-
-//       const txn = await Mina.transaction(senderAccount, async () => {
-//         await zkApp.verify(id, creditScore, signature);
-//       });
-//       await txn.prove();
-//       await txn.sign([senderKey]).send();
-
-//       const events = await zkApp.fetchEvents();
-//       const verifiedEventValue = events[0].event.data.toFields(null)[0];
-//       expect(verifiedEventValue).toEqual(id);
-//     });
 });

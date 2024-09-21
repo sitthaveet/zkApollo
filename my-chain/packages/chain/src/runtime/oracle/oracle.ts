@@ -47,50 +47,7 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
     return lockAmount.value;
   }
 
-  public async verifyIfRealAmountIsMoreThanTarget(
-    targetAmount: UInt224
-  ): Promise<Bool> {
-    const realAmount = await this.realAmount.get();
-    const isRealAmountMoreThanTarget = targetAmount.lessThanOrEqual(
-      realAmount.value
-    );
-    return isRealAmountMoreThanTarget;
-  }
-
-  // public async penaltyOwner(): Promise<UInt224> {
-  //   // TODO: implement penalty for Alice
-  //   return UInt224.from(0);
-  // }
-
-  // method oracle verify response from Copper API for checking from their client
-  @runtimeMethod()
-  public async verifyReserve(
-    realAmount: UInt224,
-    targetAmount: UInt224
-  ) {
-
-    // set realAmount to the state
-    await this.realAmount.set(realAmount);
-
-    // Check if real amount is greater or equal to the target amount
-    const isRealAmountMoreThanTarget =
-      await this.verifyIfRealAmountIsMoreThanTarget(targetAmount);
-
-    // penalty action if the reserve is below target
-    // const penaltyAction = Provable.if(
-    //   // check if real amount is more than target amount
-    //   isRealAmountMoreThanTarget,
-    //   // if reserve > target
-    //   await this.getLockAmount(),
-    //   // if reserve < target, penalty Alice and return false
-    //   await this.penaltyOwner()
-    // );
-
-    // set lock amount to the state
-    // this.lockAmount.set(UInt224.from(penaltyAction));
-  }
-
-  // method oracle verify response from Copper API for minting
+  // method oracle verify response from API for minting
   @runtimeMethod()
   public async verifyReserveForMinting(
     realAmount: UInt224,
@@ -98,10 +55,10 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
   ): Promise<Bool> {
 
     // set realAmount to the state
-    const realAmountInFunction = realAmount;
     await this.realAmount.set(realAmount);
 
-    const isReserveAmountMoreThanTarget = targetAmount.lessThanOrEqual(realAmountInFunction)
+    // check if real amount is greater or equal to the target amount
+    const isReserveAmountMoreThanTarget = targetAmount.lessThanOrEqual(realAmount)
 
     assert(
       isReserveAmountMoreThanTarget,
@@ -110,8 +67,30 @@ export class OracleModule extends RuntimeModule<Record<string, never>> {
 
     return isReserveAmountMoreThanTarget;
 
-    // implement lock MINA on-chain
+    // TODO: implement lock MINA on-chain
 
-    // implement minting synthetic asset
+    // TODO: implement minting synthetic asset
+
+  }
+
+  // method oracle verify response from Copper API for checking from their client
+  @runtimeMethod()
+  public async verifyReserve(
+    realAmount: UInt224,
+    targetAmount: UInt224
+  ) {
+    // set realAmount to the state
+    await this.realAmount.set(realAmount);
+
+    // Check if real amount is greater or equal to the target amount
+    const isReserveAmountMoreThanTarget = targetAmount.lessThanOrEqual(realAmount)
+
+    // TODO: implement penalty for Alice
+
+    // const penaltyAction = Provable.if(
+    //   isReserveAmountMoreThanTarget,
+    //   do nothing,
+    //   penalty action
+    // );
   }
 }
