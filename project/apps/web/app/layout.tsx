@@ -1,11 +1,11 @@
 "use client";
 import "./globals.css";
-import { Inter as FontSans } from "next/font/google";
+import { Outfit } from "next/font/google";
 import { cn } from "@/lib/utils";
 
 import AsyncLayoutDynamic from "@/containers/async-layout-dynamic";
 
-export const fontSans = FontSans({
+export const fontSans = Outfit({
   subsets: ["latin"],
   variable: "--font-sans",
 });
@@ -19,11 +19,15 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body
         className={cn(
-          "h-full bg-background font-sans antialiased",
+          "h-full bg-[url('/graph-paper.svg')] bg-repeat font-mono antialiased",
           fontSans.variable,
         )}
       >
-        <AsyncLayoutDynamic>{children}</AsyncLayoutDynamic>
+         <div className="bg-[#ffffffd6] min-h-screen flex flex-col justify-between">
+          <AsyncLayoutDynamic>
+          {children}
+          </AsyncLayoutDynamic>
+          </div>
       </body>
     </html>
   );
