@@ -22,7 +22,7 @@ import {
 	Struct,
 	provable,
 } from "o1js";
-//import { SyntheticAsset } from "./syntheticAsset";
+
 import { inject } from "tsyringe";
 
 const MINA_PRICE = 5;
@@ -168,7 +168,7 @@ export class CustodyModule extends BaseBalances<BalancesConfig> {
 		]);
 		// Check that the signature is valid
 		validSignature.assertTrue();
-		// Check that the provided credit score is 700 or higher
+		// Check that the provided reserve is equal to or higher than required
 		currentReserve.assertGreaterThanOrEqual(requiredReserve);
 	}
 
@@ -191,9 +191,6 @@ export class CustodyModule extends BaseBalances<BalancesConfig> {
 		const collateralFactor = (await this.collateralFactor.get()).value;
 		const requiredCollateral = newCustodyValue.mul(collateralFactor);
 		totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
-
-		//transfer amount of Mina Collateral from user
-		//(await this.minaAsset.get()).value.transferFrom(sender, custodyAccount, minaAmount);
 
 		//Call Verification of Proof of RWA
 		await this.verifyReserveAmount(
@@ -247,9 +244,6 @@ export class CustodyModule extends BaseBalances<BalancesConfig> {
 		const requiredCollateral = newCustodyValue.mul(collateralFactor);
 		const totalMinaValue = await this.minaToUsd(newCollateralAmount);
 		totalMinaValue.assertGreaterThanOrEqual(requiredCollateral);
-
-		//return mina collateral from custody to user
-		//(await this.minaAsset.get()).value.transferFrom(custodyAccount, sender, minaAmount);
 
 		//record accounting changes
 		await this.totalSupply.set(existingTotalSupply.sub(removeSupply));
