@@ -10,7 +10,7 @@ import {
 } from "o1js";
 import { CustodyModule } from "../../src/runtime/custody";
 import { log } from "@proto-kit/common";
-import { BalancesKey, TokenId, UInt64, UInt224, Balance } from "@proto-kit/library";
+import { BalancesKey, TokenId, UInt64, Balance } from "@proto-kit/library";
 import { custodian1, custodian2 } from "../../../../api/custodian";
 
 log.setLevel("ERROR");
@@ -59,7 +59,7 @@ describe("Verify the reserves in custody and mint synthetic asset", () => {
   it("check the initial reserve amount must be 0", async () => {
    await localDeploy();
     const reserveAmount = await appChain.query.runtime.CustodyModule.reserveAmount.get();
-    expect(reserveAmount).toEqual(UInt224.from(0));
+    expect(reserveAmount).toEqual(UInt64.from(0));
   });
 
 
@@ -67,14 +67,16 @@ describe("Verify the reserves in custody and mint synthetic asset", () => {
     await localDeploy();
 
     const responseFromAPI = custodian2
-    const reserveAmount = UInt224.from(responseFromAPI.stockAmount);
-    const id = UInt224.from(responseFromAPI.id);
-    const signature = Signature.fromBase58(responseFromAPI.signature);
-    const newSupply = UInt224.from(9);
-    const minaAmount = UInt224.from(100);
-
+    const reserveAmount = UInt64.from(responseFromAPI.stockAmount); // 200
+    const id = UInt64.from(responseFromAPI.id); // 2
+    // const signature = Signature.fromBase58(responseFromAPI.signature); // 7mXLjSvjXYjnp5eye7wwHMjzzxvm9brHGaEfj8pXtxFUyShSC6G9togvAGkM2Tzdc6z39XNarEvMtAqEsUixkf1nGD1RteW5
+    const signature = PublicKey.fromBase58(responseFromAPI.publicKey);
+    const newSupply = UInt64.from(9);
+    const minaAmount = UInt64.from(100);
+    
     const tx = await appChain.transaction(alice, async () => {
         await custody.proveCustodyForMinting(reserveAmount, newSupply, minaAmount, signature, id);
+        // await custody.verifyReserveAmount(signature, newSupply, reserveAmount, id);
     });         
     await tx.sign();
     await tx.send();
@@ -92,11 +94,12 @@ describe("Verify the reserves in custody and mint synthetic asset", () => {
     await localDeploy();
 
     const responseFromAPI = custodian1
-    const reserveAmount = UInt224.from(responseFromAPI.stockAmount);
-    const id = UInt224.from(responseFromAPI.id);
-    const signature = Signature.fromBase58(responseFromAPI.signature);
-    const newSupply = UInt224.from(5000);
-    const minaAmount = UInt224.from(5);
+    const reserveAmount = UInt64.from(responseFromAPI.stockAmount);
+    const id = UInt64.from(responseFromAPI.id);
+    // const signature = Signature.fromBase58(responseFromAPI.signature);
+    const signature = PublicKey.fromBase58(responseFromAPI.publicKey);
+    const newSupply = UInt64.from(5000);
+    const minaAmount = UInt64.from(5);
 
     const tx = await appChain.transaction(alice, async () => {
         await custody.proveCustodyForMinting(reserveAmount, newSupply, minaAmount, signature, id);
